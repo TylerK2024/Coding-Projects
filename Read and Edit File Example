@@ -1,0 +1,76 @@
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.PrintWriter;
+import java.util.Scanner;
+
+public class ReadAndEditFile {
+	
+	public static void main(String [] args) {
+		Scanner scanner = new Scanner(System.in);
+		String fileName;
+		
+		System.out.println("What is the name of your file?");
+		fileName = scanner.nextLine();
+		
+		File inputFile = new File(fileName); 
+		
+		while (!inputFile.exists()) { 
+			System.out.println("File Not Found " + fileName);
+			System.out.println("What is the name of your file?" );
+			fileName = scanner.nextLine();
+			inputFile = new File(fileName);
+		}
+		
+		try { 
+			Scanner fileScanner = new Scanner(inputFile);
+			StringBuilder modifiedContent = new StringBuilder();
+			
+			while (fileScanner.hasNextLine()) {
+				String line = fileScanner.nextLine();
+				String modifiedLine = modifyLine(line);
+				modifiedContent.append(modifiedLine).append("\n");
+			}
+			fileScanner.close();
+			
+			writeToFile("HomeworkOutput6-2.txt", modifiedContent.toString());
+			
+		} catch (FileNotFoundException e) {
+			System.out.println("Error reading the file: " + e.getMessage());
+		}
+		
+		scanner.close();
+	}
+	
+	public static String modifyLine(String line) {
+	    StringBuilder modifiedLine = new StringBuilder();
+	    boolean capitalizeNext = true; // Start with capitalizing the first letter
+	    
+	    for (char c : line.toCharArray()) {
+	        if (Character.isLetter(c)) {
+	            modifiedLine.append(capitalizeNext ? Character.toUpperCase(c) : Character.toLowerCase(c));
+	            capitalizeNext = false;
+	        } else if (c == '.') {
+	            capitalizeNext = true; // Capitalize the next letter after period
+	            modifiedLine.append(c);
+	        } else {
+	            modifiedLine.append(c);
+	        }
+	    }
+	    
+	    String cleanedLine = modifiedLine.toString().replaceAll("\\s+", " ");
+	    
+	    return cleanedLine;
+	}
+	
+	private static void writeToFile(String fileName, String content) {
+		try {
+			PrintWriter writer = new PrintWriter(fileName);
+			writer.write(content);
+			writer.close();
+		} catch (FileNotFoundException e) {
+			System.out.println("Error writing to file: " + e.getMessage());
+		}
+	}
+
+
+}
