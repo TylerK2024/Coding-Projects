@@ -1,0 +1,240 @@
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.util.Random;
+
+public class Grid {
+    private boolean[][] bombGrid;
+    private int[][] countGrid;
+    private int numRows;
+    private int numColumns;
+    private int numBombs;
+
+    public Grid() {
+        this(10, 10, 25);
+    }
+
+    public Grid(int rows, int columns) {
+        this(rows, columns, 25);
+    }
+
+    public Grid(int rows, int columns, int numBombs) {
+        numRows = rows;
+        numColumns = columns;
+        this.numBombs = numBombs;
+
+        createBombGrid();
+        createCountGrid();
+    }
+
+    private void createBombGrid() {
+        bombGrid = new boolean[numRows][numColumns];
+        Random random = new Random();
+
+        for (int i = 0; i < numBombs; i++) {
+            int row, col;
+            do {
+                row = random.nextInt(numRows);
+                col = random.nextInt(numColumns);
+            } while (bombGrid[row][col]);
+            bombGrid[row][col] = true;
+        }
+    }
+
+    private void createCountGrid() {
+        countGrid = new int[numRows][numColumns];
+
+        for (int row = 0; row < numRows; row++) {
+            for (int col = 0; col < numColumns; col++) {
+                if (bombGrid[row][col]) {
+                    countGrid[row][col] = -1;
+                } else {
+                    int count = 0;
+                    for (int dr = -1; dr <= 1; dr++) {
+                        for (int dc = -1; dc <= 1; dc++) {
+                            int r = row + dr;
+                            int c = col + dc;
+                            if (r >= 0 && r < numRows && c >= 0 && c < numColumns && bombGrid[r][c]) {
+                                count++;
+                            }
+                        }
+                    }
+                    countGrid[row][col] = count;
+                }
+            }
+        }
+    }
+
+    public int getNumRows() {
+        return numRows;
+    }
+
+    public int getNumColumns() {
+        return numColumns;
+    }
+
+    public int getNumBombs() {
+        return numBombs;
+    }
+
+    public boolean[][] getBombGrid() {
+        return bombGrid.clone();
+    }
+
+    public int[][] getCountGrid() {
+        int[][] copy = new int[numRows][numColumns];
+        for (int i = 0; i < numRows; i++) {
+            System.arraycopy(countGrid[i], 0, copy[i], 0, numColumns);
+        }
+        return copy;
+    }
+
+    public boolean isBombAtLocation(int row, int col) {
+        return bombGrid[row][col];
+    }
+
+    public int getCountAtLocation(int row, int col) {
+        return countGrid[row][col];
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> {
+            Grid grid = new Grid();
+            new MinesweeperGUI(grid);
+        });
+    }
+
+    public static class MinesweeperGUI extends JFrame {
+        private static final long serialVersionUID = 1L;
+		private Grid grid;
+        private JButton[][] buttons;
+        private boolean[][] revealed;
+
+        public MinesweeperGUI(Grid grid) {
+            this.grid = grid;
+            buttons = new JButton[grid.getNumRows()][grid.getNumColumns()];
+            revealed = new boolean[grid.getNumRows()][grid.getNumColumns()];
+
+            setTitle("Minesweeper");
+            setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+            JPanel gridPanel = new JPanel(new GridLayout(grid.getNumRows(), grid.getNumColumns()));
+            for (int row = 0; row < grid.getNumRows(); row++) {
+                for (int col = 0; col < grid.getNumColumns(); col++) {
+                    JButton button = new JButton();
+                    button.setPreferredSize(new Dimension(30, 30));
+                    button.addActionListener(new ButtonClickListener(row, col));
+                    gridPanel.add(button);
+                    buttons[row][col] = button;
+                }
+            }
+
+            add(gridPanel);
+
+            pack();
+            setLocationRelativeTo(null);
+            setVisible(true);
+        }
+
+        private class ButtonClickListener implements ActionListener {
+            private int row;
+            private int col;
+
+            public ButtonClickListener(int row, int col) {
+                this.row = row;
+                this.col = col;
+            }
+
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                revealCell(row, col);
+            }
+        }
+
+        private void revealCell(int row, int col) {
+            if (revealed[row][col]) {
+                return;
+            }
+
+            revealed[row][col] = true;
+            buttons[row][col].setEnabled(false);
+
+            if (grid.isBombAtLocation(row, col)) {
+                for (int r = 0; r < grid.getNumRows(); r++) {
+                    for (int c = 0; c < grid.getNumColumns(); c++) {
+                        if (grid.isBombAtLocation(r, c)) {
+                            buttons[r][c].setText("B");
+                        }
+                    }
+                }
+
+                int choice = JOptionPane.showConfirmDialog(
+                        this,
+                        "Game Over! Would you like to play again?",
+                        "Game Over",
+                        JOptionPane.YES_NO_OPTION);
+
+                if (choice == JOptionPane.YES_OPTION) {
+                    resetGame();
+                } else {
+                    System.exit(0);
+                }
+            } else {
+                int count = grid.getCountAtLocation(row, col);
+                if (count == 0) {
+                    for (int dr = -1; dr <= 1; dr++) {
+                        for (int dc = -1; dc <= 1; dc++) {
+                            int r = row + dr;
+                            int c = col + dc;
+                            if (r >= 0 && r < grid.getNumRows() && c >= 0 && c < grid.getNumColumns()) {
+                                revealCell(r, c);
+                            }
+                        }
+                    }
+                } else {
+                    buttons[row][col].setText(Integer.toString(count));
+                }
+            }
+
+            if (isGameWon()) {
+                int choice = JOptionPane.showConfirmDialog(
+                        this,
+                        "Congratulations! You won! Would you like to play again?",
+                        "Game Won",
+                        JOptionPane.YES_NO_OPTION);
+
+                if (choice == JOptionPane.YES_OPTION) {
+                    resetGame();
+                } else {
+                    System.exit(0);
+                }
+            }
+        }
+
+        private boolean isGameWon() {
+            for (int row = 0; row < grid.getNumRows(); row++) {
+                for (int col = 0; col < grid.getNumColumns(); col++) {
+                    if (!revealed[row][col] && !grid.isBombAtLocation(row, col)) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+        private void resetGame() {
+            grid = new Grid();
+            for (int row = 0; row < grid.getNumRows(); row++) {
+                for (int col = 0; col < grid.getNumColumns(); col++) {
+                    revealed[row][col] = false;
+                    buttons[row][col].setEnabled(true);
+                    buttons[row][col].setText("");
+                }
+            }
+        }
+
+        public void run() {
+            setVisible(true);
+        }
+    }
+}
